@@ -35,12 +35,12 @@ pipeline {
             steps {
                 script {
                     // Extract image name for Nginx from the docker-compose build
-                    def nginxImageID = sh(script: "docker images --format '{{.Repository}}:{{.Tag}}' | grep '$IMAGE_NAME_NGINX'", returnStdout: true).trim()
+                    def nginxImageID = sh(script: "docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^$IMAGE_NAME_NGINX'", returnStdout: true).trim()
 
                     if (!nginxImageID) {
                         error "No image found for Nginx"
                     }
-
+		    echo "Found image Id: ${nginxImageId}"
                     env.NEW_NGINX_IMAGE_TAG = nginxImageID
                 }
             }
