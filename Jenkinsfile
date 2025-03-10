@@ -2,21 +2,21 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'sujaldangal/nginx-app' // Image name for your Nginx app
+        IMAGE_NAME_NGINX = 'sujaldangal/nginx-app'  // Image name for your Nginx app
     }
 
     stages {
         stage('Checkout Repository') {
             steps {
                 // Checkout your repository containing the docker-compose.yml and other files
-                git url: 'https://github.com/sujaldangal08/docker-lemp.git', branch: 'main'
+                git url: 'https://github.com/sujaldangal08/docker-lemp.git', branch: 'master'
             }
         }
 
         stage('Login to Docker Hub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', 
-                                usernameVariable: 'DOCKER_USER', 
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials',
+                                usernameVariable: 'DOCKER_USER',
                                 passwordVariable: 'DOCKER_PASS')]) {
                     // Login to Docker Hub
                     sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
@@ -34,12 +34,14 @@ pipeline {
         stage('Extract Image ID from Docker Compose') {
             steps {
                 script {
-                    // Extract image name from the docker-compose build
-                    def imageID = sh(script: "docker images --format '{{.Repository}}:{{.Tag}}' | grep '$IMAGE_NAME'", returnStdout: true).trim()
-                    if (!imageID) {
-                        error "No image found with name $IMAGE_NAME"
+                    // Extract image name for Nginx from the docker-compose build
+                    def nginxImageID = sh(script: "docker images --format '{{.Repository}}:{{.Tag}}' | grep '$IMAGE_NAME_NGINX'", returnStdout: true).trim()
+
+                    if (!nginxImageID) {
+                        error "No image found for Nginx"
                     }
-                    env.NEW_IMAGE_TAG = imageID
+
+                    env.NEW_NGINX_IMAGE_TAG = nginxImageID
                 }
             }
         }
@@ -47,13 +49,20 @@ pipeline {
         stage('Push New Image to Docker Hub') {
             steps {
                 script {
-                    // Tag the image and push it to Docker Hub with version tag and latest tag
-                    def buildTag = "v${env.BUILD_NUMBER}"
-                    sh "docker tag $NEW_IMAGE_TAG $IMAGE_NAME:${buildTag}"
-                    sh "docker push $IMAGE_NAME:${buildTag}"
-                    sh "docker push $IMAGE_NAME:latest"
+                    // Tag the Nginx image and push it to Docker Hub with version tag and latest tag
+                    def nginxBuildTag = "v${env.BUILD_NUMBER}"
+                    sh "docker tag $NEW_NGINX_IMAGE_TAG $IMAGE_NAME_NGINX:${nginxBuildTag}"
+                    sh "docker push $IMAGE_NAME_NGINX:${nginxBuildTag}"
+                    sh "docker push $IMAGE_NAME_NGINX:latest"
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            // Cleanup Docker system to free resources
+            sh 'docker system prune -f'
         }
     }
 }
