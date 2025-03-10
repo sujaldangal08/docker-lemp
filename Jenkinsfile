@@ -30,21 +30,28 @@ pipeline {
                 sh 'docker compose up -d --build'
             }
         }
+	stage('Extract Image ID from Docker Compose') {
+	    steps {
+	        script {
+        	    // Get the list of images after running docker compose up
+        	    def images = sh(script: "docker images --format '{{.Repository}}:{{.Tag}}'", returnStdout: true).trim()
 
-        stage('Extract Image ID from Docker Compose') {
-            steps {
-                script {
-                    // Extract image name for Nginx from the docker-compose build
-                    def nginxImageID = sh(script: "docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^$IMAGE_NAME_NGINX'", returnStdout: true).trim()
+        	    // Debug output for the list of images
+        	    echo "Docker images list: ${images}"
 
-                    if (!nginxImageID) {
-                        error "No image found for Nginx"
-                    }
-		    echo "Found image Id: ${nginxImageId}"
-                    env.NEW_NGINX_IMAGE_TAG = nginxImageID
-                }
-            }
-        }
+	            // Check if the desired image is in the list
+        	    def nginxImageID = images.find { it.contains('sujaldangal/nginx-app') }
+
+        	    if (!nginxImageID) {
+        	        error "No image found for Nginx with name sujaldangal/nginx-app"
+        	    }
+
+       		    echo "Found image ID: ${nginxImageID}"
+        	    env.NEW_NGINX_IMAGE_TAG = nginxImageID
+ 	       }
+ 	   }
+	}
+		
 
         stage('Push New Image to Docker Hub') {
             steps {
